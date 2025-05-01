@@ -1,0 +1,67 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int                @id @default(autoincrement())
+  email             String             @unique
+  password          String
+  role              String
+  courses           Course[]
+  enrollments       Enrollment[]
+  completedSessions CompletedSession[]
+  createdAt         DateTime           @default(now())
+}
+
+model Course {
+  id           Int          @id @default(autoincrement())
+  title        String
+  description  String
+  category     String
+  instructor   User         @relation(fields: [instructorId], references: [id])
+  instructorId Int
+  sessions     Session[]
+  enrollments  Enrollment[]
+}
+
+model Session {
+  id                Int                @id @default(autoincrement())
+  course            Course             @relation(fields: [courseId], references: [id])
+  courseId          Int
+  title             String
+  videoLink         String
+  explanation       String
+  completedSessions CompletedSession[]
+}
+
+model Enrollment {
+  id                Int                @id @default(autoincrement())
+  student           User               @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId         Int
+  course            Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId          Int
+  enrollmentDate    DateTime           @default(now())
+  completedSessions CompletedSession[] 
+}
+
+model CompletedSession {
+  id           Int         @id @default(autoincrement())
+  student      User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId    Int
+  session      Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId    Int
+  completedAt  DateTime    @default(now())
+  Enrollment   Enrollment? @relation(fields: [enrollmentId], references: [id])
+  enrollmentId Int?
+}
