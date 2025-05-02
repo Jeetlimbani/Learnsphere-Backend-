@@ -82,8 +82,6 @@ router.put('/:courseId', authenticateUser, async (req, res) => {
   }
 });
 
-
-
 // Delete a course
 router.delete('/:courseId', authenticateUser, async (req, res) => {
   const { courseId } = req.params;
@@ -133,6 +131,29 @@ router.get('/published', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch courses by category' });
   }
 });
+
+router.get('/:courseId/sessions/:sessionId', async (req, res) => {
+  const { courseId, sessionId } = req.params;
+
+  try {
+    const session = await prisma.session.findFirst({
+      where: {
+        id: parseInt(sessionId),
+        courseId: parseInt(courseId),
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found in this course.' });
+    }
+
+    res.status(200).json(session);
+  } catch (error) {
+    console.error('Error fetching specific session:', error);
+    res.status(500).json({ error: 'Failed to fetch session details.', details: error.message });
+  }
+});
+
 
 export default router;
 
