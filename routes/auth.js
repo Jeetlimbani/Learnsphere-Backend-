@@ -1,13 +1,14 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import pkg from '@prisma/client';  
 const { PrismaClient } = pkg; 
 import authenticateUser from '../middleware/auth1.js';
 
 const prisma = new PrismaClient();
 const router = express.Router();
-
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // Register route
 router.post('/register', async (req, res) => {
   const { email, password, role } = req.body;
@@ -45,7 +46,7 @@ router.post('/login', async (req, res) => {
       maxAge: 3600000, 
     });
     
-    res.json({ message: 'Logged in successfully', token: token }); 
+    res.json({ message: 'Logged in successfully', token: token,role: user.role }); 
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Login failed' });
@@ -75,4 +76,111 @@ router.get('/user', authenticateUser, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch user data' });
   }
 });
+
+// Google login/signup route
+router.post('/google-login', async (req, res) => {
+  const { credential } = req.body;
+
+  try {
+    // Verify the Google token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload();
+    const email = payload.email;
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (existingUser) {
+      // User exists, create and send JWT token
+      const token = jwt.sign(
+        { id: existingUser.id, role: existingUser.role }, 
+        process.env.JWT_SECRET, 
+        { expiresIn: '1h' }
+      );
+
+      res.cookie('authToken', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 3600000,
+      });
+
+      return res.json({
+        message: 'Google login successful',
+        token,
+        role: existingUser.role
+      });
+    } else {
+      // New user, send back Google user info for role selection
+      return res.json({
+        isNewUser: true,
+        googleUser: {
+          email: payload.email,
+          googleId: payload.sub,
+          name: payload.name,
+          picture: payload.picture
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Google authentication error:', error);
+    res.status(500).json({ error: 'Google authentication failed' });
+  }
+});
+
+// Complete Google registration with role
+router.post('/google-register', async (req, res) => {
+  const { googleUser, role } = req.body;
+
+  if (!googleUser || !role) {
+    return res.status(400).json({ error: 'Missing required information' });
+  }
+
+  try {
+    // Generate a random password for Google users
+    const randomPassword = Math.random().toString(36).slice(-10);
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+    // Create new user
+    const newUser = await prisma.user.create({
+      data: {
+        email: googleUser.email,
+        password: hashedPassword,
+        role: role
+      }
+    });
+    console.log('Created user with role:', newUser.role);
+
+
+    // Create and send JWT token
+    const token = jwt.sign(
+      { id: newUser.id, role: newUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 3600000,
+    });
+
+    return res.json({
+      message: 'Google registration successful',
+      token,
+      role: newUser.role
+    });
+  } catch (error) {
+    console.error('Google registration error:', error);
+    res.status(500).json({ error: 'Google registration failed' });
+  }
+});
+
+
+
 export default router;

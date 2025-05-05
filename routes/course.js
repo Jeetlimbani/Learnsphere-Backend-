@@ -120,17 +120,17 @@ router.get('/published', async (req, res) => {
 });
 
 // View courses by category
-router.get('/published', async (req, res) => {
-  const { category } = req.query;
-  try {
-    const courses = await prisma.course.findMany({
-      where: { category },
-    });
-    res.status(200).json(courses);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch courses by category' });
-  }
-});
+// router.get('/published', async (req, res) => {
+//   const { category } = req.query;
+//   try {
+//     const courses = await prisma.course.findMany({
+//       where: { category },
+//     });
+//     res.status(200).json(courses);
+//   } catch (error) {
+//     res.status(500).json({ error: 'Failed to fetch courses by category' });
+//   }
+// });
 
 router.get('/:courseId/sessions/:sessionId', async (req, res) => {
   const { courseId, sessionId } = req.params;
