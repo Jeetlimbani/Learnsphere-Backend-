@@ -17,10 +17,11 @@ model User {
   id                Int                @id @default(autoincrement())
   email             String             @unique
   password          String
-  role              String    
+  role              String
   courses           Course[]
   enrollments       Enrollment[]
   completedSessions CompletedSession[]
+  ratings           Rating[]
   createdAt         DateTime           @default(now())
 }
 
@@ -43,6 +44,7 @@ model Session {
   videoLink         String
   explanation       String
   completedSessions CompletedSession[]
+  ratings           Rating[]
 }
 
 model Enrollment {
@@ -52,16 +54,31 @@ model Enrollment {
   course            Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
   courseId          Int
   enrollmentDate    DateTime           @default(now())
-  completedSessions CompletedSession[] 
+  completedSessions CompletedSession[]
+  ratings           Rating[]
 }
 
-  model CompletedSession {
-    id           Int         @id @default(autoincrement())
-    student      User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
-    studentId    Int
-    session      Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-    sessionId    Int
-    completedAt  DateTime    @default(now())
-    Enrollment   Enrollment? @relation(fields: [enrollmentId], references: [id])
-    enrollmentId Int?
-  }
+model CompletedSession {
+  id           Int         @id @default(autoincrement())
+  student      User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId    Int
+  session      Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId    Int
+  completedAt  DateTime    @default(now())
+  Enrollment   Enrollment? @relation(fields: [enrollmentId], references: [id])
+  enrollmentId Int?
+}
+
+model Rating {
+  id        Int      @id @default(autoincrement())
+  rating    Int      
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId Int
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId Int
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  enrollmentId Int
+
+  @@unique([studentId, sessionId])
+}
+

@@ -116,6 +116,87 @@ router.post(
   }
 );
 
+// Endpoint to submit a rating for a session
+router.post('/sessions/:sessionId/rate', authenticateUser, authorizestudent, async (req, res) => {
+  const sessionId = parseInt(req.params.sessionId);
+  const { rating } = req.body;
+  const studentId = req.user.id;
+
+  if (!rating || rating < 1 || rating > 5) {
+    return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
+  }
+
+  try {
+    // Check if the session exists
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found.' });
+    }
+
+    // Find the enrollment for this student and the session's course
+    const enrollment = await prisma.enrollment.findFirst({
+      where: {
+        studentId: studentId,
+        courseId: session.courseId,
+      },
+    });
+    if (!enrollment) {
+      return res.status(404).json({ error: 'Enrollment not found for this session.' });
+    }
+
+    // Check if the student has already rated this session
+    const existingRating = await prisma.rating.findUnique({
+      where: {
+        studentId_sessionId: {
+          studentId: studentId,
+          sessionId: sessionId,
+        },
+      },
+    });
+
+    if (existingRating) {
+      return res.status(409).json({ error: 'You have already rated this session.' });
+    }
+
+    // Create the new rating
+    const newRating = await prisma.rating.create({
+      data: {
+        rating: rating,
+        studentId: studentId,
+        sessionId: sessionId,
+        enrollmentId: enrollment.id,
+      },
+    });
+
+    return res.status(201).json(newRating);
+  } catch (error) {
+    console.error('Error submitting rating:', error);
+    return res.status(500).json({ error: 'Failed to submit rating.', details: error.message });
+  }
+});
+
+router.get('/sessions/:sessionId/rating-status', authenticateUser, authorizestudent, async (req, res) => {
+  const sessionId = parseInt(req.params.sessionId);
+  const studentId = req.user.id;
+
+  try {
+    const existingRating = await prisma.rating.findUnique({
+      where: {
+        studentId_sessionId: {
+          studentId: studentId,
+          sessionId: sessionId,
+        },
+      },
+    });
+
+    res.json({ hasRated: !!existingRating });
+  } catch (error) {
+    console.error('Error checking rating status:', error);
+    res.status(500).json({ error: 'Failed to check rating status.' });
+  }
+});
 // Fetch all sessions for a specific course
 router.get('/courses/:courseId/sessions', authenticateUser, async (req, res) => {
   const { courseId } = req.params;

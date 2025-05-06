@@ -58,6 +58,7 @@ router.post('/logout', (req, res) => {
   res.clearCookie('authToken');  // Clear the cookie
   res.json({ message: 'Logged out successfully' });
 });
+
 router.get('/user', authenticateUser, async (req, res) => {
   try {
     // req.user contains the decoded JWT payload (user ID)
