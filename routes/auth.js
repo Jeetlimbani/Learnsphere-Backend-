@@ -149,7 +149,7 @@ router.post('/google-register', async (req, res) => {
 
     // Create new user
     const newUser = await prisma.user.create({
-      data: {
+      data: { 
         email: googleUser.email,
         password: hashedPassword,
         role: role
